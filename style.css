@@ -319,7 +319,92 @@ main {
     margin-top: 12px;
     display: inline-block;
     min-width: 0;
+    order: 2;
+    /* permite posicionar abaixo no flex flow em mobile */
+    width: 100%;
 }
+
+/* 2) Mobile-first fix: em telas pequenas, exibir nome + imagem lado a lado e preço abaixo */
+@media (max-width: 800px) {
+    .item-card {
+        /* em mobile: usar layout em linha para manter nome à esquerda e imagem à direita */
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        gap: 12px;
+    }
+
+    .item-content {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    /* garantir que o título não quebre o layout */
+    .item-name {
+        font-size: 16px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .item-image-wrapper {
+        position: static;
+        /* não absolute em mobile */
+        width: 56px;
+        height: 56px;
+        margin-left: 12px;
+        flex-shrink: 0;
+    }
+
+    /* colocar descrição abaixo do título (se exibida) */
+    .item-desc-text {
+        display: none;
+        /* ainda só aparece em .show-desc */
+    }
+
+    /* preço com largura total abaixo (visualmente fica em nova linha) */
+    .item-price {
+        margin-top: 10px;
+        width: 100%;
+    }
+
+    /* quando o card cresce para exibir descrição, empilhar verticalmente */
+    .item-card.show-desc {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .item-card.show-desc .item-image-wrapper {
+        align-self: flex-end;
+        margin-top: 8px;
+    }
+
+    /* admin actions posicionamento adaptável */
+    .admin-card-actions {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+    }
+}
+
+/* 3) Desktop: manter imagem absoluta à direita (mantido) */
+@media (min-width: 801px) {
+    .item-card {
+        display: block;
+        padding-right: 96px;
+        /* espaço para imagem absoluta */
+    }
+
+    .item-image-wrapper {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        width: 64px;
+        height: 64px;
+    }
+}
+
 
 /* ADMIN and TOAST remain unchanged */
 .toast {
