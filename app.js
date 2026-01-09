@@ -352,7 +352,6 @@ window.renderMenu = function () {
             priceShort.style.fontWeight = '700';
             priceShort.style.color = 'var(--gold)';
             priceShort.style.fontSize = '14px';
-            priceShort.innerText = window.formatCurrency(item.price);
 
             row.appendChild(title);
             row.appendChild(priceShort);
@@ -738,4 +737,5 @@ tryLoadLocalJson().then(found => {
         renderMenu();
     }
 });
+
 
