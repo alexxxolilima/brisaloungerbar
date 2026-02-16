@@ -1,435 +1,795 @@
-const refs = {
-  searchInput: document.getElementById("searchInput"),
-  categoryNav: document.getElementById("categoryNav"),
-  highlightsTrack: document.getElementById("highlightsTrack"),
-  menuList: document.getElementById("menuList"),
-  modalOverlay: document.getElementById("modalOverlay"),
-  modalContent: document.getElementById("modalContent"),
-  toast: document.getElementById("toast")
-};
-
-const state = {
-  menu: { categories: [] },
-  search: "",
-  tag: "todos",
-  searchDebounce: null,
-  imageCache: new Map(),
-  itemsById: new Map()
-};
-
-const fixedTags = [
-  { id: "todos", label: "Todos" },
-  { id: "drinks-combos", label: "Drinks e Combos" },
-  { id: "caldos-porcoes-tabuas", label: "Caldos, Porções e Tábuas" },
-  { id: "narguike", label: "Narguike" }
-];
-
-function showToast(message) {
-  refs.toast.textContent = message;
-  refs.toast.classList.add("show");
-  window.setTimeout(() => refs.toast.classList.remove("show"), 1800);
+:root {
+  --bg: #081624;
+  --bg-soft: #10263f;
+  --surface: #122b46;
+  --surface-2: #18365a;
+  --text: #f6f8fc;
+  --text-muted: #a5bdd9;
+  --line: rgba(255, 255, 255, 0.14);
+  --accent: #f7b04e;
+  --accent-2: #ff922e;
+  --ok: #22c55e;
+  --danger: #ef4444;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --shadow: 0 12px 28px rgba(0, 8, 16, 0.38);
+  --font-main: "Manrope", "Segoe UI", sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
 }
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+* {
+  box-sizing: border-box;
 }
 
-function maybeFixEncoding(value) {
-  if (typeof value !== "string") return value;
-  if (!/[ÃÂâ�]/.test(value)) return value;
-  try {
-    return decodeURIComponent(escape(value));
-  } catch (_e) {
-    return value;
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+  font-family: var(--font-main);
+  background:
+    radial-gradient(circle at 0% -10%, #1a3e68 0%, transparent 45%),
+    radial-gradient(circle at 100% 120%, #1a2f4e 0%, transparent 42%),
+    linear-gradient(180deg, #071220 0%, #0a1b2e 100%);
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: contain;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  appearance: none;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: 10px;
+  z-index: 999;
+  background: var(--accent);
+  color: #2a1a04;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  left: 10px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app {
+  min-height: 100vh;
+  padding-bottom: calc(24px + var(--safe-bottom));
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  padding-top: max(10px, var(--safe-top));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(8, 22, 36, 0.96), rgba(8, 22, 36, 0.84));
+  backdrop-filter: blur(14px);
+  transform: translateZ(0);
+}
+
+.brand,
+.search,
+.category-nav,
+.main-content {
+  width: min(980px, calc(100% - 1rem));
+  margin: 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 8px;
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-6px);
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 280ms cubic-bezier(0.22, 1, 0.36, 1), max-height 280ms cubic-bezier(0.22, 1, 0.36, 1), padding 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.brand-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+}
+
+.brand h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.52rem;
+  line-height: 0.95;
+  letter-spacing: 0.08em;
+}
+
+.brand p {
+  margin: 3px 0 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.search {
+  margin-top: 8px;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #87a2c5;
+}
+
+.search input {
+  width: 100%;
+  height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  padding: 0 14px 0 40px;
+  font: inherit;
+  font-size: 16px;
+}
+
+.search input::placeholder {
+  color: #95adc9;
+}
+
+.search input:focus {
+  outline: 2px solid rgba(247, 176, 78, 0.45);
+  border-color: rgba(247, 176, 78, 0.65);
+}
+
+.category-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-nav::-webkit-scrollbar,
+.highlights-track::-webkit-scrollbar {
+  display: none;
+}
+
+.category-nav {
+  margin-top: 0;
+  padding-bottom: 0;
+  scroll-snap-type: x proximity;
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease, max-height 220ms ease, margin 220ms ease, padding 220ms ease;
+}
+
+.search {
+  opacity: 1;
+  max-height: 60px;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1), transform 260ms cubic-bezier(0.22, 1, 0.36, 1), max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), margin 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.scrolled .search {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+body.at-top .brand {
+  opacity: 1;
+  max-height: 72px;
+  transform: translateY(0);
+  pointer-events: auto;
+  padding: 4px 0 8px;
+}
+
+body.scrolled .brand {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+  padding: 0;
+}
+
+body.scrolled .category-nav {
+  opacity: 1;
+  max-height: 52px;
+  margin-top: 8px;
+  padding-bottom: 8px;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.chip {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7e5f7;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 9px 12px;
+  min-height: 38px;
+  touch-action: manipulation;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.chip.active {
+  background: rgba(247, 176, 78, 0.24);
+  border-color: rgba(247, 176, 78, 0.64);
+  color: #fff4e3;
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip:focus-visible,
+.highlight-card:focus-visible,
+.item-card:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid rgba(247, 176, 78, 0.72);
+  outline-offset: 2px;
+}
+
+.main-content {
+  padding-top: 14px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.highlights {
+  margin-bottom: 16px;
+}
+
+.highlights-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+  scroll-snap-type: x mandatory;
+}
+
+.highlight-card {
+  min-width: 210px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+  scroll-snap-align: start;
+  animation: fade-up 340ms ease both;
+}
+
+.highlight-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(247, 176, 78, 0.5);
+}
+
+.highlight-card:active {
+  transform: scale(0.98);
+}
+
+.highlight-name {
+  font-size: 0.87rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.highlight-price {
+  margin-top: 8px;
+  display: inline-block;
+  border-radius: 10px;
+  border: 1px solid rgba(247, 176, 78, 0.38);
+  background: rgba(247, 176, 78, 0.22);
+  color: #ffe7c1;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
+.category-section {
+  margin-bottom: 18px;
+  scroll-margin-top: 150px;
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+  animation: fade-up 260ms ease both;
+}
+
+.cat-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(247, 176, 78, 0.2);
+}
+
+.cat-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.cat-count {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+.items-list {
+  display: grid;
+  gap: 10px;
+}
+
+.item-card {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 92px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 160ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.item-card:active {
+  transform: scale(0.985);
+}
+
+.item-card:hover {
+  border-color: rgba(247, 176, 78, 0.42);
+}
+
+.item-thumb {
+  width: 58px;
+  height: 58px;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-content {
+  min-width: 0;
+  width: 100%;
+}
+
+.item-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.item-desc {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.79rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item-bottom {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-price {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(247, 176, 78, 0.38);
+  background: rgba(247, 176, 78, 0.22);
+  color: #ffe7c1;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.item-cta {
+  font-size: 0.74rem;
+  color: #d8e6f8;
+  opacity: 0.8;
+}
+
+.empty-state {
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 26px 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  top: calc(14px + var(--safe-top));
+  transform: translate(-50%, -90px);
+  z-index: 150;
+  width: calc(100% - 24px);
+  max-width: 420px;
+  text-align: center;
+  border-radius: 12px;
+  background: rgba(21, 30, 44, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 10px 12px;
+  opacity: 0;
+  transition: transform 240ms ease, opacity 240ms ease;
+}
+
+.toast.show {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  background: rgba(3, 8, 14, 0.78);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  animation: overlay-in 180ms ease;
+}
+
+.modal-backdrop.active {
+  display: flex;
+}
+
+.modal {
+  width: 100%;
+  max-height: 92vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: linear-gradient(160deg, #11263f, #0c1d32);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px 18px 0 0;
+  padding-bottom: var(--safe-bottom);
+  animation: sheet-up 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: transparent;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-close:active {
+  transform: scale(0.95);
+}
+
+.modal-body {
+  padding: 14px;
+}
+
+.modal-info {
+  text-align: left;
+}
+
+.modal-image {
+  width: 100%;
+  border-radius: 12px;
+  max-height: 300px;
+  object-fit: cover;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.modal-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.modal-desc {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+  font-size: 0.93rem;
+}
+
+.modal-price {
+  margin-top: 14px;
+  display: inline-block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffe7c1;
+  border-radius: 11px;
+  border: 1px solid rgba(247, 176, 78, 0.42);
+  background: rgba(247, 176, 78, 0.22);
+  padding: 8px 12px;
+}
+
+.noscript {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--safe-bottom));
+  border-radius: 10px;
+  background: #4f1616;
+  border: 1px solid #7d2d2d;
+  color: #ffd6d6;
+  padding: 10px;
+  font-size: 0.85rem;
+  z-index: 1000;
+}
+
+@media (min-width: 740px) {
+  .brand,
+  .search,
+  .category-nav,
+  .main-content {
+    width: min(980px, calc(100% - 2rem));
+  }
+
+  .brand {
+    padding-bottom: 10px;
+  }
+
+  .brand-logo {
+    width: 54px;
+    height: 54px;
+  }
+
+  .brand h1 {
+    font-size: 1.85rem;
+  }
+
+  .brand p {
+    font-size: 0.78rem;
+  }
+
+  .items-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .item-card {
+    min-height: 104px;
+    padding: 12px;
+  }
+
+  .item-thumb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .modal-backdrop {
+    align-items: center;
+    padding: 20px;
+  }
+
+  .modal {
+    width: min(640px, 100%);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding-bottom: 0;
+  }
+
+  .modal-body {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    gap: 16px;
+    align-items: center;
+    min-height: 260px;
+  }
+
+  .modal-image {
+    margin-bottom: 0;
+    max-height: 320px;
+  }
+
+  .modal-info {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .modal-desc {
+    max-width: 34ch;
+  }
+
+  .modal-body.no-image {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .modal-body.no-image .modal-info {
+    text-align: center;
   }
 }
 
-function normalizeText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
-}
-
-function normalizeMenu(raw) {
-  const root = raw && typeof raw === "object" ? raw : {};
-  const categoriesIn = Array.isArray(root.categories) ? root.categories : [];
-
-  return {
-    categories: categoriesIn.map((cat, catIndex) => {
-      const itemsIn = Array.isArray(cat && cat.items) ? cat.items : [];
-      const name = maybeFixEncoding((cat && cat.name) || `Seção ${catIndex + 1}`).trim();
-      const id = (cat && cat.id) || `cat_${catIndex}_${Date.now().toString(36)}`;
-
-      return {
-        id,
-        name,
-        items: itemsIn.map((item, itemIndex) => ({
-          id: (item && item.id) || `item_${catIndex}_${itemIndex}`,
-          name: maybeFixEncoding((item && item.name) || "Item").trim(),
-          desc: maybeFixEncoding((item && item.desc) || "").trim(),
-          image: String((item && item.image) || "").trim(),
-          price: Number.isFinite(Number(item && item.price)) ? Number(item.price) : 0,
-          categoryName: name,
-          categoryId: id
-        }))
-      };
-    })
-  };
-}
-
-function getItemImageCandidates(item) {
-  const candidates = [];
-  if (item.image) candidates.push(item.image);
-  if (item.id) {
-    candidates.push(`./images/${item.id}.jpg`);
-    candidates.push(`./images/${item.id}.png`);
-  }
-  return candidates;
-}
-
-function setImageWithFallback(img, item, handlers = {}) {
-  const onSuccess = typeof handlers.onSuccess === "function" ? handlers.onSuccess : () => {};
-  const onFail = typeof handlers.onFail === "function" ? handlers.onFail : () => {};
-  const cached = state.imageCache.get(item.id);
-  if (cached === null) {
-    img.style.display = "none";
-    onFail();
-    return;
-  }
-  if (typeof cached === "string") {
-    img.src = cached;
-    img.style.display = "block";
-    onSuccess();
-    return;
+@media (min-width: 980px) {
+  .brand,
+  .search,
+  .category-nav,
+  .main-content {
+    width: min(1200px, calc(100% - 3rem));
   }
 
-  const candidates = getItemImageCandidates(item);
-  if (!candidates.length) {
-    img.style.display = "none";
-    state.imageCache.set(item.id, null);
-    onFail();
-    return;
+  .main-content {
+    padding-top: 18px;
   }
 
-  const tryAt = (idx) => {
-    if (idx >= candidates.length) {
-      img.style.display = "none";
-      state.imageCache.set(item.id, null);
-      onFail();
-      return;
-    }
-
-    img.src = candidates[idx];
-    img.onerror = () => tryAt(idx + 1);
-    img.onload = () => {
-      img.style.display = "block";
-      state.imageCache.set(item.id, candidates[idx]);
-      onSuccess();
-    };
-  };
-
-  tryAt(0);
-}
-
-function categoryMatchesTag(category, tagId) {
-  if (tagId === "todos") return true;
-  const name = normalizeText(category.name);
-  if (tagId === "drinks-combos") {
-    return name.includes("drink") || name.includes("combo") || name.includes("garrafa");
+  .items-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
   }
-  if (tagId === "caldos-porcoes-tabuas") {
-    return name.includes("caldo") || name.includes("porcao") || name.includes("tabua");
+}
+
+@media (min-width: 1080px) {
+  .items-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  if (tagId === "narguike") {
-    return name.includes("narguile") || name.includes("narguike");
-  }
-  return true;
 }
 
-function matchesSearch(item) {
-  if (!state.search) return true;
-  return item._searchKey.includes(state.search);
-}
-
-function getFilteredCategories() {
-  const baseCategories = state.menu.categories.filter((cat) => categoryMatchesTag(cat, state.tag));
-
-  return baseCategories
-    .map((cat) => {
-      const items = cat.items.filter((item) => matchesSearch(item));
-      return { ...cat, items };
-    })
-    .filter((cat) => cat.items.length > 0);
-}
-
-function renderCategoryNav() {
-  refs.categoryNav.innerHTML = "";
-  const frag = document.createDocumentFragment();
-
-  fixedTags.forEach((tag) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `chip ${state.tag === tag.id ? "active" : ""}`;
-    btn.textContent = tag.label;
-    btn.addEventListener("click", () => {
-      state.tag = state.tag === tag.id ? "todos" : tag.id;
-      renderApp();
-    });
-    frag.appendChild(btn);
-  });
-
-  refs.categoryNav.appendChild(frag);
-}
-
-function renderHighlights() {
-  refs.highlightsTrack.innerHTML = "";
-
-  const allItems = state.menu.categories
-    .filter((cat) => categoryMatchesTag(cat, state.tag))
-    .flatMap((cat) => cat.items)
-    .filter((item) => matchesSearch(item));
-
-  const base = allItems
-    .slice()
-    .sort((a, b) => Number(a.price) - Number(b.price))
-    .slice(0, 8);
-
-  if (!base.length) {
-    refs.highlightsTrack.innerHTML = "<div class=\"empty-state\">Sem itens para destacar agora.</div>";
-    return;
+@media (min-width: 1360px) {
+  .brand,
+  .search,
+  .category-nav,
+  .main-content {
+    width: min(1320px, calc(100% - 4rem));
   }
 
-  const frag = document.createDocumentFragment();
-
-  base.forEach((item) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "highlight-card";
-    card.dataset.itemId = item.id;
-    card.innerHTML = `
-      <div class="highlight-name">${escapeHtml(item.name)}</div>
-      <span class="highlight-price">${formatCurrency(item.price)}</span>
-    `;
-    frag.appendChild(card);
-  });
-
-  refs.highlightsTrack.appendChild(frag);
+  .items-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
-function renderMenu() {
-  refs.menuList.innerHTML = "";
-  const filteredCategories = getFilteredCategories();
-
-  if (!filteredCategories.length) {
-    refs.menuList.innerHTML = "<div class=\"empty-state\">Nenhum item encontrado com esses filtros.</div>";
-    return;
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
 
-  const frag = document.createDocumentFragment();
-
-  filteredCategories.forEach((cat) => {
-    const section = document.createElement("section");
-    section.className = "category-section";
-    section.id = cat.id;
-
-    section.innerHTML = `
-      <header class="cat-header">
-        <h3 class="cat-title">${escapeHtml(cat.name)}</h3>
-        <span class="cat-count">${cat.items.length} itens</span>
-      </header>
-    `;
-
-    const list = document.createElement("div");
-    list.className = "items-list";
-
-    cat.items.forEach((item) => {
-      const card = document.createElement("article");
-      card.className = "item-card";
-      card.dataset.itemId = item.id;
-      card.tabIndex = 0;
-      card.setAttribute("role", "button");
-      card.setAttribute("aria-label", `${item.name}, ${formatCurrency(item.price)}`);
-
-      const thumb = document.createElement("div");
-      thumb.className = "item-thumb";
-      const img = document.createElement("img");
-      img.alt = item.name;
-      img.loading = "lazy";
-      img.decoding = "async";
-      setImageWithFallback(img, item);
-      thumb.appendChild(img);
-
-      const content = document.createElement("div");
-      content.className = "item-content";
-      content.innerHTML = `
-        <h4 class="item-name">${escapeHtml(item.name)}</h4>
-        ${item.desc ? `<p class="item-desc">${escapeHtml(item.desc)}</p>` : ""}
-        <div class="item-bottom">
-          <span class="item-price">${formatCurrency(item.price)}</span>
-          <span class="item-cta">Ver detalhes</span>
-        </div>
-      `;
-
-      card.appendChild(thumb);
-      card.appendChild(content);
-      list.appendChild(card);
-    });
-
-    section.appendChild(list);
-    frag.appendChild(section);
-  });
-
-  refs.menuList.appendChild(frag);
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-function openItemModal(item) {
-  refs.modalContent.innerHTML = `
-    <div class="modal-header">
-      <h3 id="modalTitle" class="modal-title">Detalhes do produto</h3>
-      <button class="modal-close" type="button" aria-label="Fechar" onclick="closeModal()">x</button>
-    </div>
-    <div id="modalBody" class="modal-body">
-      <img id="modalImg" class="modal-image" alt="Imagem do produto">
-      <div class="modal-info">
-        <h2 class="modal-name">${escapeHtml(item.name)}</h2>
-        <p class="modal-desc">${escapeHtml(item.desc || "Sem descrição adicional.")}</p>
-        <span class="modal-price">${formatCurrency(item.price)}</span>
-      </div>
-    </div>
-  `;
-
-  const modalImg = document.getElementById("modalImg");
-  const modalBody = document.getElementById("modalBody");
-  setImageWithFallback(modalImg, item, {
-    onSuccess: () => modalBody.classList.remove("no-image"),
-    onFail: () => modalBody.classList.add("no-image")
-  });
-
-  refs.modalOverlay.classList.add("active");
-  refs.modalOverlay.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden";
-}
-
-function openItemModalById(itemId) {
-  if (!itemId) return;
-  const item = state.itemsById.get(itemId);
-  if (!item) return;
-  openItemModal(item);
-}
-
-window.closeModal = function closeModal() {
-  refs.modalOverlay.classList.remove("active");
-  refs.modalOverlay.setAttribute("aria-hidden", "true");
-  refs.modalContent.innerHTML = "";
-  document.body.style.overflow = "";
-};
-
-refs.modalOverlay.addEventListener("click", (event) => {
-  if (event.target === refs.modalOverlay) window.closeModal();
-});
-
-refs.menuList.addEventListener("click", (event) => {
-  const card = event.target.closest(".item-card");
-  if (!card) return;
-  openItemModalById(card.dataset.itemId);
-});
-
-refs.menuList.addEventListener("keydown", (event) => {
-  const card = event.target.closest(".item-card");
-  if (!card) return;
-  if (event.key !== "Enter" && event.key !== " ") return;
-  event.preventDefault();
-  openItemModalById(card.dataset.itemId);
-});
-
-refs.highlightsTrack.addEventListener("click", (event) => {
-  const card = event.target.closest(".highlight-card");
-  if (!card) return;
-  openItemModalById(card.dataset.itemId);
-});
-
-function buildItemIndexes() {
-  state.itemsById.clear();
-  state.imageCache.clear();
-  state.menu.categories.forEach((cat) => {
-    cat.items.forEach((item) => {
-      item._searchKey = normalizeText(`${item.name} ${item.desc} ${cat.name}`);
-      state.itemsById.set(item.id, item);
-    });
-  });
-}
-
-function renderApp() {
-  renderCategoryNav();
-  renderHighlights();
-  renderMenu();
-}
-
-let scrollTicking = false;
-let isTopMode = true;
-function syncTopbarMode() {
-  const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
-  const leaveTopThreshold = 10;
-  const returnTopThreshold = 2;
-
-  if (isTopMode && scrollY > leaveTopThreshold) {
-    isTopMode = false;
-  } else if (!isTopMode && scrollY <= returnTopThreshold) {
-    isTopMode = true;
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
   }
 
-  document.body.classList.toggle("at-top", isTopMode);
-  document.body.classList.toggle("scrolled", !isTopMode);
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-window.addEventListener("scroll", () => {
-  if (scrollTicking) return;
-  scrollTicking = true;
-  window.requestAnimationFrame(() => {
-    syncTopbarMode();
-    scrollTicking = false;
-  });
-}, { passive: true });
-
-refs.searchInput.addEventListener("input", () => {
-  clearTimeout(state.searchDebounce);
-  state.searchDebounce = window.setTimeout(() => {
-    state.search = normalizeText(refs.searchInput.value);
-    renderMenu();
-    renderHighlights();
-  }, 120);
-});
-
-async function loadMenuData() {
-  const candidates = ["./menu_final_brisa.json", "./menu.json"];
-
-  for (const path of candidates) {
-    try {
-      const response = await fetch(path + "?v=" + Date.now(), { cache: "no-store" });
-      if (!response.ok) continue;
-      const json = await response.json();
-      return normalizeMenu(json);
-    } catch (_e) {
-      // try next file
-    }
+@keyframes overlay-in {
+  from {
+    opacity: 0;
   }
 
-  return { categories: [] };
+  to {
+    opacity: 1;
+  }
 }
 
-(async function bootstrap() {
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
