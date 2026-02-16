@@ -101,14 +101,19 @@ function getItemImageCandidates(item) {
   return candidates;
 }
 
-function setImageWithFallback(img, item) {
+function setImageWithFallback(img, item, handlers = {}) {
+  const onSuccess = typeof handlers.onSuccess === "function" ? handlers.onSuccess : () => {};
+  const onFail = typeof handlers.onFail === "function" ? handlers.onFail : () => {};
   const cached = state.imageCache.get(item.id);
   if (cached === null) {
     img.style.display = "none";
+    onFail();
     return;
   }
   if (typeof cached === "string") {
     img.src = cached;
+    img.style.display = "block";
+    onSuccess();
     return;
   }
 
@@ -116,6 +121,7 @@ function setImageWithFallback(img, item) {
   if (!candidates.length) {
     img.style.display = "none";
     state.imageCache.set(item.id, null);
+    onFail();
     return;
   }
 
@@ -123,6 +129,7 @@ function setImageWithFallback(img, item) {
     if (idx >= candidates.length) {
       img.style.display = "none";
       state.imageCache.set(item.id, null);
+      onFail();
       return;
     }
 
@@ -131,6 +138,7 @@ function setImageWithFallback(img, item) {
     img.onload = () => {
       img.style.display = "block";
       state.imageCache.set(item.id, candidates[idx]);
+      onSuccess();
     };
   };
 
@@ -294,16 +302,22 @@ function openItemModal(item) {
       <h3 id="modalTitle" class="modal-title">Detalhes do produto</h3>
       <button class="modal-close" type="button" aria-label="Fechar" onclick="closeModal()">x</button>
     </div>
-    <div class="modal-body">
+    <div id="modalBody" class="modal-body">
       <img id="modalImg" class="modal-image" alt="Imagem do produto">
-      <h2 class="modal-name">${escapeHtml(item.name)}</h2>
-      <p class="modal-desc">${escapeHtml(item.desc || "Sem descrição adicional.")}</p>
-      <span class="modal-price">${formatCurrency(item.price)}</span>
+      <div class="modal-info">
+        <h2 class="modal-name">${escapeHtml(item.name)}</h2>
+        <p class="modal-desc">${escapeHtml(item.desc || "Sem descrição adicional.")}</p>
+        <span class="modal-price">${formatCurrency(item.price)}</span>
+      </div>
     </div>
   `;
 
   const modalImg = document.getElementById("modalImg");
-  setImageWithFallback(modalImg, item);
+  const modalBody = document.getElementById("modalBody");
+  setImageWithFallback(modalImg, item, {
+    onSuccess: () => modalBody.classList.remove("no-image"),
+    onFail: () => modalBody.classList.add("no-image")
+  });
 
   refs.modalOverlay.classList.add("active");
   refs.modalOverlay.setAttribute("aria-hidden", "false");
@@ -418,18 +432,4 @@ async function loadMenuData() {
 }
 
 (async function bootstrap() {
-  state.menu = await loadMenuData();
-
-  if (!state.menu.categories.length) {
-    refs.highlightsTrack.innerHTML = "<div class=\"empty-state\">Não foi possível carregar o cardápio.</div>";
-    refs.menuList.innerHTML = "<div class=\"empty-state\">Confira se o arquivo menu_final_brisa.json existe.</div>";
-    showToast("Falha ao carregar cardápio");
-    return;
-  }
-
-  buildItemIndexes();
-  renderApp();
-  syncTopbarMode();
-  showToast("Cardápio carregado");
-})();
 
