@@ -515,6 +515,7 @@ body.scrolled .category-nav {
   background: rgba(3, 8, 14, 0.78);
   display: none;
   align-items: flex-end;
+  justify-content: center;
   padding: 0;
   animation: overlay-in 180ms ease;
 }
@@ -571,6 +572,10 @@ body.scrolled .category-nav {
 
 .modal-body {
   padding: 14px;
+}
+
+.modal-info {
+  text-align: left;
 }
 
 .modal-image {
@@ -673,6 +678,39 @@ body.scrolled .category-nav {
     border: 1px solid rgba(255, 255, 255, 0.18);
     padding-bottom: 0;
   }
+
+  .modal-body {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    gap: 16px;
+    align-items: center;
+    min-height: 260px;
+  }
+
+  .modal-image {
+    margin-bottom: 0;
+    max-height: 320px;
+  }
+
+  .modal-info {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .modal-desc {
+    max-width: 34ch;
+  }
+
+  .modal-body.no-image {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .modal-body.no-image .modal-info {
+    text-align: center;
+  }
 }
 
 @media (min-width: 980px) {
@@ -716,41 +754,4 @@ body.scrolled .category-nav {
   from {
     opacity: 0;
     transform: translateY(8px);
-  }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes sheet-up {
-  from {
-    transform: translateY(24px);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes overlay-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
