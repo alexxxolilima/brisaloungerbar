@@ -109,7 +109,6 @@ button {
 .brand,
 .search,
 .category-nav,
-.quick-filters,
 .main-content {
   width: min(980px, calc(100% - 1rem));
   margin: 0 auto;
@@ -120,6 +119,12 @@ button {
   align-items: center;
   gap: 10px;
   padding: 4px 0 8px;
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-6px);
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 280ms cubic-bezier(0.22, 1, 0.36, 1), max-height 280ms cubic-bezier(0.22, 1, 0.36, 1), padding 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .brand-logo {
@@ -181,8 +186,7 @@ button {
   border-color: rgba(247, 176, 78, 0.65);
 }
 
-.category-nav,
-.quick-filters {
+.category-nav {
   display: flex;
   gap: 8px;
   overflow-x: auto;
@@ -191,20 +195,59 @@ button {
 }
 
 .category-nav::-webkit-scrollbar,
-.quick-filters::-webkit-scrollbar,
 .highlights-track::-webkit-scrollbar {
   display: none;
 }
 
 .category-nav {
-  margin-top: 10px;
-  padding-bottom: 4px;
+  margin-top: 0;
+  padding-bottom: 0;
   scroll-snap-type: x proximity;
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease, max-height 220ms ease, margin 220ms ease, padding 220ms ease;
 }
 
-.quick-filters {
-  margin-top: 6px;
-  padding-bottom: 10px;
+.search {
+  opacity: 1;
+  max-height: 60px;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1), transform 260ms cubic-bezier(0.22, 1, 0.36, 1), max-height 260ms cubic-bezier(0.22, 1, 0.36, 1), margin 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.scrolled .search {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+body.at-top .brand {
+  opacity: 1;
+  max-height: 72px;
+  transform: translateY(0);
+  pointer-events: auto;
+  padding: 4px 0 8px;
+}
+
+body.scrolled .brand {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+  padding: 0;
+}
+
+body.scrolled .category-nav {
+  opacity: 1;
+  max-height: 52px;
+  margin-top: 8px;
+  padding-bottom: 8px;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .chip {
@@ -583,7 +626,6 @@ button {
   .brand,
   .search,
   .category-nav,
-  .quick-filters,
   .main-content {
     width: min(980px, calc(100% - 2rem));
   }
@@ -637,7 +679,6 @@ button {
   .brand,
   .search,
   .category-nav,
-  .quick-filters,
   .main-content {
     width: min(1200px, calc(100% - 3rem));
   }
@@ -662,7 +703,6 @@ button {
   .brand,
   .search,
   .category-nav,
-  .quick-filters,
   .main-content {
     width: min(1320px, calc(100% - 4rem));
   }
