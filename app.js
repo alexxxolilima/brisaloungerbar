@@ -1,7 +1,6 @@
 const refs = {
   searchInput: document.getElementById("searchInput"),
   categoryNav: document.getElementById("categoryNav"),
-  quickFilters: document.getElementById("quickFilters"),
   highlightsTrack: document.getElementById("highlightsTrack"),
   menuList: document.getElementById("menuList"),
   modalOverlay: document.getElementById("modalOverlay"),
@@ -12,18 +11,17 @@ const refs = {
 const state = {
   menu: { categories: [] },
   search: "",
-  category: "all",
-  filter: "all",
+  tag: "todos",
   searchDebounce: null,
   imageCache: new Map(),
   itemsById: new Map()
 };
 
-const quickFilterOptions = [
-  { id: "all", label: "Tudo" },
-  { id: "ate20", label: "Até R$ 20" },
-  { id: "semAlcool", label: "Sem álcool" },
-  { id: "combos", label: "Combos" }
+const fixedTags = [
+  { id: "todos", label: "Todos" },
+  { id: "drinks-combos", label: "Drinks e Combos" },
+  { id: "caldos-porcoes-tabuas", label: "Caldos, Porções e Tábuas" },
+  { id: "narguike", label: "Narguike" }
 ];
 
 function showToast(message) {
@@ -139,27 +137,17 @@ function setImageWithFallback(img, item) {
   tryAt(0);
 }
 
-function isSemAlcool(item) {
-  const text = item._searchKey;
-  return (
-    text.includes("sem álcool") ||
-    text.includes("sem alcool") ||
-    text.includes("água") ||
-    text.includes("agua") ||
-    text.includes("refrigerante") ||
-    text.includes("suco") ||
-    text.includes("tônica") ||
-    text.includes("tonica")
-  );
-}
-
-function matchesQuickFilter(item) {
-  if (state.filter === "all") return true;
-  if (state.filter === "ate20") return Number(item.price) <= 20;
-  if (state.filter === "semAlcool") return isSemAlcool(item);
-  if (state.filter === "combos") {
-    const text = item._searchKey;
-    return text.includes("combo") || text.includes("garrafa");
+function categoryMatchesTag(category, tagId) {
+  if (tagId === "todos") return true;
+  const name = normalizeText(category.name);
+  if (tagId === "drinks-combos") {
+    return name.includes("drink") || name.includes("combo") || name.includes("garrafa");
+  }
+  if (tagId === "caldos-porcoes-tabuas") {
+    return name.includes("caldo") || name.includes("porcao") || name.includes("tabua");
+  }
+  if (tagId === "narguike") {
+    return name.includes("narguile") || name.includes("narguike");
   }
   return true;
 }
@@ -170,13 +158,11 @@ function matchesSearch(item) {
 }
 
 function getFilteredCategories() {
-  const baseCategories = state.category === "all"
-    ? state.menu.categories
-    : state.menu.categories.filter((cat) => cat.id === state.category);
+  const baseCategories = state.menu.categories.filter((cat) => categoryMatchesTag(cat, state.tag));
 
   return baseCategories
     .map((cat) => {
-      const items = cat.items.filter((item) => matchesSearch(item) && matchesQuickFilter(item));
+      const items = cat.items.filter((item) => matchesSearch(item));
       return { ...cat, items };
     })
     .filter((cat) => cat.items.length > 0);
@@ -186,23 +172,13 @@ function renderCategoryNav() {
   refs.categoryNav.innerHTML = "";
   const frag = document.createDocumentFragment();
 
-  const allBtn = document.createElement("button");
-  allBtn.type = "button";
-  allBtn.className = `chip ${state.category === "all" ? "active" : ""}`;
-  allBtn.textContent = "Todas";
-  allBtn.addEventListener("click", () => {
-    state.category = "all";
-    renderApp();
-  });
-  frag.appendChild(allBtn);
-
-  state.menu.categories.forEach((cat) => {
+  fixedTags.forEach((tag) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `chip ${state.category === cat.id ? "active" : ""}`;
-    btn.textContent = cat.name;
+    btn.className = `chip ${state.tag === tag.id ? "active" : ""}`;
+    btn.textContent = tag.label;
     btn.addEventListener("click", () => {
-      state.category = cat.id;
+      state.tag = state.tag === tag.id ? "todos" : tag.id;
       renderApp();
     });
     frag.appendChild(btn);
@@ -211,29 +187,14 @@ function renderCategoryNav() {
   refs.categoryNav.appendChild(frag);
 }
 
-function renderQuickFilters() {
-  refs.quickFilters.innerHTML = "";
-  const frag = document.createDocumentFragment();
-
-  quickFilterOptions.forEach((f) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `chip ${state.filter === f.id ? "active" : ""}`;
-    btn.textContent = f.label;
-    btn.addEventListener("click", () => {
-      state.filter = f.id;
-      renderApp();
-    });
-    frag.appendChild(btn);
-  });
-
-  refs.quickFilters.appendChild(frag);
-}
-
 function renderHighlights() {
   refs.highlightsTrack.innerHTML = "";
 
-  const allItems = state.menu.categories.flatMap((cat) => cat.items);
+  const allItems = state.menu.categories
+    .filter((cat) => categoryMatchesTag(cat, state.tag))
+    .flatMap((cat) => cat.items)
+    .filter((item) => matchesSearch(item));
+
   const base = allItems
     .slice()
     .sort((a, b) => Number(a.price) - Number(b.price))
@@ -317,7 +278,6 @@ function renderMenu() {
 
       card.appendChild(thumb);
       card.appendChild(content);
-
       list.appendChild(card);
     });
 
@@ -401,16 +361,42 @@ function buildItemIndexes() {
 
 function renderApp() {
   renderCategoryNav();
-  renderQuickFilters();
   renderHighlights();
   renderMenu();
 }
+
+let scrollTicking = false;
+let isTopMode = true;
+function syncTopbarMode() {
+  const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+  const leaveTopThreshold = 10;
+  const returnTopThreshold = 2;
+
+  if (isTopMode && scrollY > leaveTopThreshold) {
+    isTopMode = false;
+  } else if (!isTopMode && scrollY <= returnTopThreshold) {
+    isTopMode = true;
+  }
+
+  document.body.classList.toggle("at-top", isTopMode);
+  document.body.classList.toggle("scrolled", !isTopMode);
+}
+
+window.addEventListener("scroll", () => {
+  if (scrollTicking) return;
+  scrollTicking = true;
+  window.requestAnimationFrame(() => {
+    syncTopbarMode();
+    scrollTicking = false;
+  });
+}, { passive: true });
 
 refs.searchInput.addEventListener("input", () => {
   clearTimeout(state.searchDebounce);
   state.searchDebounce = window.setTimeout(() => {
     state.search = normalizeText(refs.searchInput.value);
     renderMenu();
+    renderHighlights();
   }, 120);
 });
 
@@ -443,6 +429,7 @@ async function loadMenuData() {
 
   buildItemIndexes();
   renderApp();
+  syncTopbarMode();
   showToast("Cardápio carregado");
 })();
 
