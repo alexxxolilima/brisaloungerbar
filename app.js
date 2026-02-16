@@ -44,11 +44,11 @@ function showToast(message) {
 
 function escapeHtml(str) {
   return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function maybeFixEncoding(value) {
@@ -62,11 +62,11 @@ function maybeFixEncoding(value) {
 }
 
 function normalizeText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
+  const base = String(value || "").toLowerCase();
+  if (typeof base.normalize === "function") {
+    return base.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  }
+  return base.trim();
 }
 
 function formatCurrency(value) {
@@ -213,7 +213,10 @@ function renderHighlights() {
 
   const allItems = state.menu.categories
     .filter((cat) => categoryMatchesTag(cat, state.tag))
-    .flatMap((cat) => cat.items)
+    .reduce((acc, cat) => {
+      if (Array.isArray(cat.items)) acc.push(...cat.items);
+      return acc;
+    }, [])
     .filter((item) => matchesSearch(item));
 
   const base = allItems
@@ -388,7 +391,11 @@ function buildItemIndexes() {
 
 function renderApp() {
   renderCategoryNav();
-  renderHighlights();
+  try {
+    renderHighlights();
+  } catch (_e) {
+    refs.highlightsTrack.innerHTML = "<div class=\"empty-state\">Destaques indisponíveis.</div>";
+  }
   renderMenu();
 }
 
