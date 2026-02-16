@@ -1,116 +1,97 @@
 <!doctype html>
 <html lang="pt-BR">
-
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#050b14" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta nome="description" content="Cardapio Brisa Lounge Bar">
-  <meta name="Keywords" content="Cardapio Brisa, Brisa Bar , Cardapio digital">
-  <meta name="Author" Content="Alex Lima">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Cardápio digital do Brisa Lounge Bar com atualização rápida de preços e produtos.">
+  <meta name="keywords" content="cardápio digital, brisa lounge bar, drinks, porções">
+  <meta name="author" content="Alex Lima">
+  <meta name="theme-color" content="#071322">
+  <meta property="og:title" content="Brisa Lounge Bar | Cardápio">
+  <meta property="og:description" content="Cardápio digital atualizado em tempo real.">
+  <meta property="og:type" content="website">
+  <title>Brisa Lounge Bar | Cardápio</title>
 
-  <!-- CSS principal -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 
-  <!-- Pré-carregamento opcional do JSON (app.js também tenta carregar automaticamente) -->
   <script>
     (function preloadMenuJson() {
       try {
-        fetch('./menu_final_brisa.json', { cache: 'no-store' }).then(res => {
-          if (!res.ok) return;
-          return res.json();
-        }).then(json => {
-          if (json) window.__preloaded_menu = json;
-        }).catch(() => {/* não crítico */ });
-      } catch (e) { }
+        fetch("./menu_final_brisa.json", { cache: "no-store" })
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .then(function (json) { if (json) window.__preloaded_menu = json; })
+          .catch(function () {});
+      } catch (_e) {}
     })();
   </script>
 </head>
-
 <body>
-  <div class="app">
+  <a class="skip-link" href="#menuMain">Ir para o conteúdo</a>
 
-    <!-- HEADER -->
-    <header>
-      <div class="header-content">
+  <div class="app-shell">
+    <header class="site-header" role="banner">
+      <div class="header-inner">
         <div class="brand-row">
-          <img id="logoBtn" class="logo-img" src="./logo.jpg" alt="Brisa Lounge Bar" />
+          <img id="logoBtn" class="logo-img" src="./logo.jpg" alt="Logo Brisa Lounge Bar">
           <div class="brand-info">
             <h1>BRISA</h1>
-            <p>LOUNGE BAR — cardápio</p>
+            <p>Lounge Bar | Cardápio</p>
           </div>
-          <div id="connStatus" class="connection-status" aria-hidden="true"></div>
+          <div class="header-badges">
+            <span id="connStatusText" class="status-text">Offline</span>
+            <span id="connStatus" class="connection-status" aria-hidden="true"></span>
+          </div>
         </div>
 
-        <div class="search-container">
+        <form class="search-container" role="search" aria-label="Buscar no cardápio" onsubmit="return false;">
+          <label class="visually-hidden" for="searchInput">Buscar item</label>
           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
-            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2"></circle>
           </svg>
-          <input id="searchInput" class="search-input" type="search" placeholder="Buscar item, ingrediente..."
-            aria-label="Buscar cardápio">
-        </div>
+          <input id="searchInput" class="search-input" type="search" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Buscar item, ingrediente..." aria-label="Buscar no cardápio">
+        </form>
 
-        <nav id="catNav" class="category-nav" aria-label="Categorias"></nav>
+        <nav id="catNav" class="category-nav" aria-label="Categorias do cardápio"></nav>
       </div>
     </header>
 
-    <!-- MAIN: lista de categorias e itens (renderizado por app.js) -->
-    <main>
-      <div id="menuList" role="list"></div>
+    <main id="menuMain" class="menu-main" tabindex="-1">
+      <section aria-label="Lista de produtos">
+        <div id="menuList"></div>
+      </section>
     </main>
-
-    <!-- TOAST -->
-    <div id="toast" class="toast" role="status" aria-live="polite" style="display:flex;">
-      <span id="toastMsg">Salvo com sucesso</span>
-    </div>
-
-    <!-- MODAL (backdrop + conteúdo) -->
-    <div id="modalOverlay" class="modal-backdrop" aria-hidden="true">
-      <div id="modalContent" class="modal" role="dialog" aria-modal="true"></div>
-    </div>
-
-    <!-- Template (HTML only) para o modal — pronto para uso quando o JS for atualizado -->
-    <template id="itemModalTemplate">
-      <div class="modal-header">
-        <h3 class="modal-title">Detalhes</h3>
-        <button class="modal-close" onclick="closeModal()">×</button>
-      </div>
-      <div class="modal-image-wrap">
-        <img class="modal-image" src="" alt="Imagem do produto" onerror="this.style.display='none'">
-      </div>
-      <div class="modal-body">
-        <h2 class="modal-item-name"
-          style="color:var(--gold); margin-top:0; line-height:1.2; font-family:var(--font-display)"></h2>
-        <p class="modal-item-desc"
-          style="color:var(--text-muted); font-size:16px; line-height:1.5; margin-bottom:20px;"></p>
-        <div style="height:1px; background:rgba(255,255,255,0.1); margin:10px 0;"></div>
-        <div class="modal-price-big"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" style="width:100%; justify-content:center"
-          onclick="closeModal()">Fechar</button>
-      </div>
-    </template>
-
-    <!-- ADMIN BAR -->
-    <div class="admin-bar" aria-hidden="true">
-      <div class="admin-actions">
-        <button class="btn btn-primary" type="button" onclick="addNewCategory()">Nova Seção</button>
-        <button class="btn btn-outline" type="button" onclick="openAddModal()">Adicionar Item</button>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button class="btn btn-outline" type="button" onclick="toggleAdmin(false)">Sair Admin</button>
-      </div>
-    </div>
-
   </div>
+
+  <button id="adminFab" class="admin-fab" type="button" aria-label="Abrir área administrativa">Admin</button>
+
+  <aside class="admin-bar" aria-label="Ações administrativas">
+    <div class="admin-actions">
+      <button class="btn btn-primary" type="button" onclick="openNewCategoryModal()">Nova Seção</button>
+      <button class="btn btn-outline" type="button" onclick="openAddModal()">Adicionar Item</button>
+      <button class="btn btn-outline" type="button" onclick="openImportModal()">Importar JSON</button>
+      <button class="btn btn-outline" type="button" onclick="exportMenuJson()">Exportar JSON</button>
+    </div>
+    <button class="btn btn-danger" type="button" onclick="toggleAdmin(false)">Sair Admin</button>
+  </aside>
+
+  <input id="importFileInput" type="file" accept=".json,application/json" hidden>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span id="toastMsg">Salvo com sucesso</span>
+  </div>
+
+  <div id="modalOverlay" class="modal-backdrop" aria-hidden="true">
+    <div id="modalContent" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+  </div>
+
+  <noscript>
+    <div class="noscript-warning">Ative o JavaScript para usar o cardápio digital.</div>
+  </noscript>
 
   <script type="module" src="app.js"></script>
 </body>
-
 </html>
